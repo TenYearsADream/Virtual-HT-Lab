@@ -1,4 +1,5 @@
 
+#pragma region includes
 
 #include "../GL/glut.h"
 #include "../GL/glaux.h"
@@ -18,12 +19,16 @@
 #include"pick.h"
 #include <fstream>
 
+#pragma endregion
 using namespace std;
 ////
 
 //#include <string>
 //#include <sstream>
 /////
+
+#pragma region DEFINEs
+
 #define PI 3.1415926536
 #define width0 1000
 int width=800;//#define width 1366//1280//1366
@@ -106,7 +111,7 @@ extern bool test_mode;
 int mover_H_ai=1,mover_L_ai=1;
 int pic=0;//作图
 int pick_flag=0;
-
+#pragma endregion
 
 
 pickIt my_pick;
@@ -560,8 +565,11 @@ void aim(int f){
 	glVertex2f(0.3,0);glVertex2f(-0.3,0);
 	glEnd();
 }
+
+/*
+*/
 void dis(void)
-{   
+{
 	static bool widFlag=true;
 	if(widFlag){
 		width1=width-320;
@@ -1214,6 +1222,7 @@ void main()
 	glutPassiveMotionFunc(mousePassiveMotion);
 	#pragma endregion
 
+	#pragma region init_model
  myinit_model(1,"../../../3DS/1_table.3DS");
  myinit_model(2,"../../../3DS/2_monitor.3DS");
  myinit_model(3,"../../../3DS/4_collector_blk.3DS");
@@ -1249,12 +1258,12 @@ void main()
  myinit_model(40,"../../../3DS/5_wind_tunnel_none.3DS");
  myinit_model(41,"../../../3DS/9_oven_door_none.3DS");
  BuildLists();
- 
+#pragma endregion
+
     pick_initial();
 	glutDisplayFunc(dis); //窗口属性改变后，调用dis重绘
-	glutIdleFunc(idle);
+	glutIdleFunc(idle); //
 	glutIgnoreKeyRepeat(1);//无视连发
 	ShowCursor(cursor);  // 隐藏鼠标指针
-	
 	glutMainLoop();
 }
