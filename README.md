@@ -11,5 +11,6 @@ A virtual heat transfer laboratory that can help thermal and power major student
 
 ## References
 glut.h tutorial
-http://blog.sina.com.cn/s/articlelist_1790060813_0_1.html
-http://www.lighthouse3d.com/tutorials/glut-tutorial/
+
+- http://blog.sina.com.cn/s/articlelist_1790060813_0_1.html
+- http://www.lighthouse3d.com/tutorials/glut-tutorial/
