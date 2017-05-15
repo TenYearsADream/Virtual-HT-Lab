@@ -8,7 +8,7 @@ using namespace std;
 #define height 768
 #define testspeed 5
 
-#define DELAY                     5//main 还有一个
+#define DELAY         5//main 还有一个
 //extern float t_record[];
 extern int cursor_position,cursor_angle;
 extern const int SAMPLE_DIVISION;
@@ -49,7 +49,7 @@ extern float anemoscope_x,anemoscope_z;
 int flag2=0,flag3=0,flag4=0,flag5=0,flag6=0,flag7=0,flag8=0,flag9=0;
 extern bool cursor,particle_end,particle_i;
 bool test_mode=false;
-void dis(void);
+void renderScene(void);
 /*void DrawGLScene(void);
 void initialparticles(void);*/
 //extern float mover_H_angle,mover_L_angle,width0,scene;
@@ -213,7 +213,7 @@ void KeyProcess(unsigned char key, int xx, int yy)
 	}
 	input();
 //	if(n_flag)printf("angle=%0.2f, x=%0.2f, z=%0.2f\n双转子转速比%d：%d\n第一级可调导叶角度%f\t第二级可调导叶角度%f\t第三级可调导叶角度%f\t第四级可调导叶角度%f\n",angle,x,z,mover_L_ai,mover_H_ai,HPC_stator_blade_1,HPC_stator_blade_2,HPC_stator_blade_3,HPC_stator_blade_4);
-	dis();
+	renderScene();
 }
 
 void SpecialKeyUp(int key,int xx,int yy)
@@ -278,7 +278,7 @@ void SpecialKey(int key,int xx,int yy)
 
 		break;
 	}
-	dis();
+	renderScene();
 }
 
 void Mouse(int button,int state,int xx,int yy)
@@ -333,7 +333,7 @@ void Mouse(int button,int state,int xx,int yy)
 	}
 
 	input();
-	dis();
+	renderScene();
 }
 /*
 void mouseMotion(int x, int y)
@@ -384,4 +384,8 @@ void mousePassiveMotion(int xx, int yy)
 	
 		glutPostRedisplay();}mouse_p_x=xx ;mouse_p_y=yy;
 //if (q_flag=true) printf("%u        %u \n",xx,yy);
+}
+
+void dis(void)
+{
 }
