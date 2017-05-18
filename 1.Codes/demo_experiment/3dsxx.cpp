@@ -71,7 +71,7 @@ void CreateTexture(UINT textureArray[], LPSTR strFileName, int textureID)
 void myinit_model(int n,char *FILE_NAME)
 {
 //	static int numOfTex=1;
-	g_Load3ds[n].Import3DS(&g_3DModel[n], FILE_NAME);			// 将3ds文件装入到模型结构体中
+	g_Load3ds[n].Import3DS(&g_3DModel[n], FILE_NAME);// 将3ds文件装入到模型结构体中
 
 	// 遍历所有的材质
 	for(int i = 0; i < g_3DModel[n].numOfMaterials; i++)

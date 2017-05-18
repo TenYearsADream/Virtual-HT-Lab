@@ -21,11 +21,7 @@
 
 #pragma endregion
 using namespace std;
-////
 
-//#include <string>
-//#include <sstream>
-/////
 
 #pragma region DEFINEs
 
@@ -55,6 +51,7 @@ int height=600;//#define height 768//1024//768
 #define GREEN 2
 #define BLUE 3
 #define ORANGE 4
+
 
 int speedChange=0;//[0,DELAY)
 int timeInterval,duration;
@@ -124,9 +121,8 @@ pickIt my_pick;
 int theOnePicked=0;
 
 float red, green, blue;
+int mainWindow, subWindow;
 
-
-#pragma region Menu
 
 void processMenuEvents(int option) 
 {
@@ -169,8 +165,7 @@ void createGLUTMenus()
 	glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
-#pragma endregion
-
+#pragma region possible funcitons
 
 //objs
 void Circle (float Radius,int CirAcc,float x,float y,float z,float v_x,float v_y,float v_z);
@@ -316,6 +311,10 @@ void myGetLocationDat(const char *Filename,int coordinate_no,float* arrayLocatio
 	fout.close();
 
  }
+
+#pragma endregion
+
+
 GLuint ascii_lists;
 void drawString(char* str) {  /////////文字
     static int isFirstCall = 1;
@@ -624,18 +623,23 @@ void aim(int f){
 */
 void renderScene(void)
 {
+	#pragma region init_renderscene
+
 	static bool widFlag=true;
 	if(widFlag){
 		width1=width-320;
 		widFlag=false;
 	}
 
-	angle_C = (angle) * PI /180.;
-	angle_c_up=(angle_up) * PI /180 ;
+	angle_C = (angle) * PI /180;
+	angle_c_up=(angle_up) * PI /180;
 
+
+	// Clear Color and Depth Buffers
 	glClearColor(0.7,0.7,0.7,1);
-	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);//GL_COLOR_BUFFER_BIT颜色缓冲;GL_DEPTH_BUFFER_BIT深度缓冲;GL_ACCUM_BUFFER_BIT累加器缓冲;GL_STENCIL_BUFFER_BIT模板缓冲
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	
+
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 /*
@@ -658,14 +662,16 @@ void renderScene(void)
 
 
 	glMatrixMode(GL_MODELVIEW);
+	
+	// Reset transformations
 	glLoadIdentity();
-
+	// Set the camera
 	gluLookAt(	x, yh, z,   
 				x+cos(angle_C), yh+tan(angle_c_up) , z+sin(angle_C), 
 				0,1,0	);
 
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
 
@@ -683,7 +689,9 @@ void renderScene(void)
 		glPushMatrix();//粒子效果，接应于约850行
         glRotatef(90,0,1,0);
         glTranslatef(-600,-100,600);*/
-		
+
+#pragma endregion
+
 	
 	//find out which item is picked
 	theOnePicked=my_pick.printPickedNum(cos(angle_C),tan(angle_c_up),sin(angle_C),x,yh,z);
@@ -693,6 +701,7 @@ void renderScene(void)
 	if(z>zmax)z=zmax;
 	else if(z<zmin)z=zmin;
 	*/
+
     if (!(step==-1)){
 			
 		DrawList(25);//room
@@ -725,20 +734,17 @@ void renderScene(void)
 	    sample(sample_time);//objs.cpp
 	    glPopMatrix();
 
-
 	}
 	//固定部件显示完成
 
 
 
 	if(step==0){//捏试样,********注意添加选择材料()变颜色
-
 		if(enter_flag){
 			//获取sample_radius[];
 			step=1;
 			enter_flag=false;
 
-			
 			//all_point_xyz赋值
 			for(int i=0;i<SAMPLE_DIVISION+1;i++){
 				for(int j=0;j<6;j++){
@@ -746,9 +752,7 @@ void renderScene(void)
 					all_point_xyz[i*3*6+j*3+1]= sample_radius[i]*sin(j/3.0f*PI);//y=
 					all_point_xyz[i*3*6+j*3+2]= sample_radius[i]*cos(j/3.0f*PI);//z=
 				}
-			}
-
-			
+			}			
 		}
 		if(space_flag){
 			//多次获取测量点
@@ -757,7 +761,8 @@ void renderScene(void)
 			if(material_no>1)material_no=0;//0-AL 1-STEEL
 		}
 	}
-//	cout<<"step"<<step;
+
+
     if (step==1){//选择测温部位，最后step=2
 		if(space_flag){
 			//多次获取测量点
@@ -991,6 +996,8 @@ glViewport(width1,0,width-width1,height);////////////////视口4//////////提示
 	glRasterPos3f(0.0f,-55.0f,stat_z);
 	drawCNString(stat1);
 
+	#pragma region theonepicked
+
 	if(theOnePicked==0){
 		sprintf(stat1,"已选中： ");  
 	}
@@ -1018,6 +1025,8 @@ glViewport(width1,0,width-width1,height);////////////////视口4//////////提示
 	if(theOnePicked==WIND_TUNNEL_PICK){
 		sprintf(stat1,"已选中：风机 ");
 	}
+#pragma endregion
+
 	glRasterPos3f(0.0f,50.0f,stat_z);
 	drawCNString(stat1);
 
@@ -1174,6 +1183,8 @@ glViewport(width1,0,width-width1,height);////////////////视口4//////////提示
 	glutSwapBuffers();
 }
 
+
+
 void idle()
 {   
 	//sample move
@@ -1253,84 +1264,86 @@ void MenuFunc(int MenuItem)// 菜单项处理函数
 	cursor=false;
 }
 
+void init_model(){
+
+	myinit_model(1, "../../2.UGmodel/3DS/1_table.3DS");
+myinit_model(2, "../../2.UGmodel/3DS/2_monitor.3DS");
+myinit_model(3, "../../2.UGmodel/3DS/4_collector_blk.3DS");
+myinit_model(4, "../../2.UGmodel/3DS/4_collector_blu.3DS");
+myinit_model(5, "../../2.UGmodel/3DS/4_collector_wht.3DS");
+myinit_model(6, "../../2.UGmodel/3DS/5_wind_tunnel_blk.3DS");
+myinit_model(7, "../../2.UGmodel/3DS/5_wind_tunnel_gry.3DS");
+// myinit_model(8,"../../2.UGmodel/3DS/5_wind_tunnel_none.3DS");
+myinit_model(8, "../../2.UGmodel/3DS/5_wind_tunnel_wht.3DS");
+myinit_model(9, "../../2.UGmodel/3DS/6_anemoscope_blu.3DS");
+myinit_model(10, "../../2.UGmodel/3DS/6_anemoscope_blu_lgt.3DS");
+myinit_model(11, "../../2.UGmodel/3DS/6_anemoscope_wht.3DS");
+myinit_model(12, "../../2.UGmodel/3DS/6_anemoscope_wire_blk.3DS");
+myinit_model(13, "../../2.UGmodel/3DS/6_anemoscope_wire_wht.3DS");
+myinit_model(14, "../../2.UGmodel/3DS/8_shelf_wht_1.3DS");
+myinit_model(15, "../../2.UGmodel/3DS/8_shelf_wht_2.3DS");
+myinit_model(16, "../../2.UGmodel/3DS/9_oven_blu.3DS");
+myinit_model(17, "../../2.UGmodel/3DS/9_oven_door_blu.3DS");
+// myinit_model(19,"../../2.UGmodel/3DS/9_oven_door_none.3DS");
+myinit_model(18, "../../2.UGmodel/3DS/9_oven_gry.3DS");
+myinit_model(19, "../../2.UGmodel/3DS/9_oven_wht.3DS");
+myinit_model(20, "../../2.UGmodel/3DS/C_box.3DS");
+myinit_model(21, "../../2.UGmodel/3DS/D_screw_blu.3DS");
+myinit_model(22, "../../2.UGmodel/3DS/D_screw_wht.3DS");
+myinit_model(23, "../../2.UGmodel/3DS/e_scissors_wht.3DS");
+myinit_model(24, "../../2.UGmodel/3DS/e_scissors_yel.3DS");
+myinit_model(25, "../../2.UGmodel/3DS/f_room_celling.3DS");
+myinit_model(26, "../../2.UGmodel/3DS/f_room_wall.3DS");
+myinit_model(27, "../../2.UGmodel/3DS/f_room_floor.3DS");
+myinit_model(28, "../../2.UGmodel/3DS/f_room_door.3DS");
+myinit_model(29, "../../2.UGmodel/3DS/f_room_scene.3DS");
+
+myinit_model(40, "../../2.UGmodel/3DS/5_wind_tunnel_none.3DS");
+myinit_model(41, "../../2.UGmodel/3DS/9_oven_door_none.3DS");
+BuildLists();// room box
+#pragma endregion
+}
 
 
-
-void main()
-{     
-
-	// init GLUT and create window
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA); // 定义窗口特征：双缓存、RGBA颜色模式
- 	glutInitWindowPosition(0,0); // 窗口位置
-	glutInitWindowSize(width,height); //窗口大小
-	glutCreateWindow("try"); // 窗口标题
-	glutFullScreen();
-
-	//Here is our new entry in the main function
-	glutReshapeFunc(Reshape); // 当改变窗口尺寸、移动窗口等情况出现时，重定义窗口属性               
-	//register callbacks
-	glutDisplayFunc(renderScene);
-	// here is the idle func registration
-	glutIdleFunc(idle); //
-
+void init() {
+	
 	glutKeyboardFunc(KeyProcess);
 	glutSpecialFunc(SpecialKey);
+
 	glutKeyboardUpFunc(KeyUpProcess);
-    glutSpecialUpFunc(SpecialKeyUp);
+	glutSpecialUpFunc(SpecialKeyUp);
 	glutMouseFunc(Mouse);
-//	glutMotionFunc(mouseMotion);
+	//	glutMotionFunc(mouseMotion);
 	glutPassiveMotionFunc(mousePassiveMotion);
 
 	createGLUTMenus();
 
-
-	#pragma region init_model
- 	myinit_model(1,"../../2.UGmodel/3DS/1_table.3DS");
- 	myinit_model(2,"../../2.UGmodel/3DS/2_monitor.3DS");
- 	myinit_model(3,"../../2.UGmodel/3DS/4_collector_blk.3DS");
- 	myinit_model(4,"../../2.UGmodel/3DS/4_collector_blu.3DS");
- 	myinit_model(5,"../../2.UGmodel/3DS/4_collector_wht.3DS");
- 	myinit_model(6,"../../2.UGmodel/3DS/5_wind_tunnel_blk.3DS");
- 	myinit_model(7,"../../2.UGmodel/3DS/5_wind_tunnel_gry.3DS");
-	// myinit_model(8,"../../2.UGmodel/3DS/5_wind_tunnel_none.3DS");
- 	myinit_model(8,"../../2.UGmodel/3DS/5_wind_tunnel_wht.3DS");
- 	myinit_model(9,"../../2.UGmodel/3DS/6_anemoscope_blu.3DS");
- 	myinit_model(10,"../../2.UGmodel/3DS/6_anemoscope_blu_lgt.3DS");
- 	myinit_model(11,"../../2.UGmodel/3DS/6_anemoscope_wht.3DS");
- 	myinit_model(12,"../../2.UGmodel/3DS/6_anemoscope_wire_blk.3DS");
- 	myinit_model(13,"../../2.UGmodel/3DS/6_anemoscope_wire_wht.3DS");
- 	myinit_model(14,"../../2.UGmodel/3DS/8_shelf_wht_1.3DS");
- 	myinit_model(15,"../../2.UGmodel/3DS/8_shelf_wht_2.3DS");
- 	myinit_model(16,"../../2.UGmodel/3DS/9_oven_blu.3DS");
- 	myinit_model(17,"../../2.UGmodel/3DS/9_oven_door_blu.3DS");
-	// myinit_model(19,"../../2.UGmodel/3DS/9_oven_door_none.3DS");
- 	myinit_model(18,"../../2.UGmodel/3DS/9_oven_gry.3DS");
- 	myinit_model(19,"../../2.UGmodel/3DS/9_oven_wht.3DS");
- 	myinit_model(20,"../../2.UGmodel/3DS/C_box.3DS");
- 	myinit_model(21,"../../2.UGmodel/3DS/D_screw_blu.3DS");
- 	myinit_model(22,"../../2.UGmodel/3DS/D_screw_wht.3DS");
- 	myinit_model(23,"../../2.UGmodel/3DS/e_scissors_wht.3DS");
- 	myinit_model(24,"../../2.UGmodel/3DS/e_scissors_yel.3DS");
- 	myinit_model(25,"../../2.UGmodel/3DS/f_room_celling.3DS");
- 	myinit_model(26,"../../2.UGmodel/3DS/f_room_wall.3DS");
- 	myinit_model(27,"../../2.UGmodel/3DS/f_room_floor.3DS");
- 	myinit_model(28,"../../2.UGmodel/3DS/f_room_door.3DS");
- 	myinit_model(29,"../../2.UGmodel/3DS/f_room_scene.3DS");
-	
- 	myinit_model(40,"../../2.UGmodel/3DS/5_wind_tunnel_none.3DS");
- 	myinit_model(41,"../../2.UGmodel/3DS/9_oven_door_none.3DS");
- 	BuildLists();
-	#pragma endregion
-
-    pick_initial();
-	
-
-
 	glutIgnoreKeyRepeat(1);//无视连发
 	ShowCursor(cursor);  // 隐藏鼠标指针
-	
 
+	pick_initial();
+
+	init_model();
+
+}
+
+
+void main()
+{     
+	// init GLUT and create window
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA); // 定义窗口特征：双缓存、RGBA颜色模式
+ 	glutInitWindowPosition(0,0); // 窗口位置
+	glutInitWindowSize(width,height); //窗口大小
+	mainWindow=glutCreateWindow("try"); // 窗口标题
+	glutFullScreen();
+	
+	//callbacks for mainwindow
+	glutDisplayFunc(renderScene);
+	glutReshapeFunc(Reshape);
+	glutIdleFunc(idle);
+	init();
 
 	// enter GLUT event processing cycle
 	glutMainLoop();
+
 }

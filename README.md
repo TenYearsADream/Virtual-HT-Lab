@@ -5,6 +5,7 @@ A virtual heat transfer laboratory that can help thermal and power major student
 ## TO DO LIST
 - **reorganize previous codes**
 - **beautify the UI: item shape, item color, item size, wind speed, wind temperature.**
+- create experiment report 
 - code theoretical calculation and numerical calculation
 - virtualize other typical experiments
 - add advanced features like login, app
