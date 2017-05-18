@@ -20,8 +20,8 @@
 #include <fstream>
 
 #pragma endregion
-using namespace std;
 
+using namespace std;
 
 #pragma region DEFINEs
 
@@ -51,7 +51,9 @@ int height=600;//#define height 768//1024//768
 #define GREEN 2
 #define BLUE 3
 #define ORANGE 4
+#pragma endregion
 
+#pragma region variables
 
 int speedChange=0;//[0,DELAY)
 int timeInterval,duration;
@@ -116,7 +118,6 @@ int pic=0;//作图
 int pick_flag=0;
 
 float stat_z = -10;
-#pragma endregion
 
 
 pickIt my_pick;
@@ -125,49 +126,19 @@ int theOnePicked=0;
 float red, green, blue;
 int mainWindow, subWindow;
 
+//input data
+float cylinder_col[30 * 30 * 5 * 3];
+float h = 0;
+float Ch = 0;
+float L = 0.4;
+float rou = 2.7e3, cp = 880;
+float t_inf = 25, t0 = ENVIRONMENT_T, t;
+float tao = 0, tao0 = 0;
+float cylinder_t[30 * 30 * 5];
+bool  cool = 0;
+#pragma endregion
 
-void processMenuEvents(int option) 
-{
-	switch (option) {
-	case RED:
-		red = 1.0f;
-		green = 0.0f;
-		blue = 0.0f; break;
-	case GREEN:
-		red = 0.0f;
-		green = 1.0f;
-		blue = 0.0f; break;
-	case BLUE:
-		red = 0.0f;
-		green = 0.0f;
-		blue = 1.0f; break;
-	case ORANGE:
-		red = 1.0f;
-		green = 0.5f;
-		blue = 0.5f; break;
-	}
-}
-
-void createGLUTMenus() 
-{
-	int menu;
-
-	// create the menu and
-	// tell glut that "processMenuEvents" will
-	// handle the events
-	menu = glutCreateMenu(processMenuEvents);
-
-	//add entries to our menu
-	glutAddMenuEntry("Red", RED);
-	glutAddMenuEntry("Blue", BLUE);
-	glutAddMenuEntry("Green", GREEN);
-	glutAddMenuEntry("Orange", ORANGE);
-
-	// attach the menu to the right button
-	glutAttachMenu(GLUT_RIGHT_BUTTON);
-}
-
-#pragma region possible funcitons
+#pragma region declares
 
 //objs
 void Circle (float Radius,int CirAcc,float x,float y,float z,float v_x,float v_y,float v_z);
@@ -317,6 +288,7 @@ void myGetLocationDat(const char *Filename,int coordinate_no,float* arrayLocatio
 #pragma endregion
 
 
+//-----------------
 GLuint ascii_lists;
 void drawString(char* str) {  /////////文字
     static int isFirstCall = 1;
@@ -335,7 +307,6 @@ void drawString(char* str) {  /////////文字
     for(; *str!='\0'; ++str)
          glCallList(ascii_lists + *str);
 }
-
 void selectFont(int size, int charset, const char* face) {
      HFONT hFont = CreateFontA(size, 0, 0, 0, FW_MEDIUM, 0, 0, 0,
          charset, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
@@ -343,7 +314,6 @@ void selectFont(int size, int charset, const char* face) {
      HFONT hOldFont = (HFONT)SelectObject(wglGetCurrentDC(), hFont);
      DeleteObject(hOldFont);
 }
-
 void drawCNString(const char* str) {
     int len, i;
     wchar_t* wstring;
@@ -378,11 +348,19 @@ void drawCNString(const char* str) {
      glDeleteLists(list, 1);
 }
 
-
+//-----------------
 float pick(float dir_x,float dir_y,float dir_z,float eye_x,float eye_y,float eye_z,float ball_x,float ball_y,float ball_z);//colision_detection
 //pick(cos(angle_C),tan(angle_c_up),sin(angle_C),x,y,z,,,,);
+void LC_display(float x, float y, float z, int num_dis, char* str) {
 
-
+	selectFont(20, GB2312_CHARSET, "楷体_GB2312");//字符显示
+	glColor3f(1.0f, 0.0f, 0.0f);
+	glRasterPos3f(x, y, z);
+	char num[10];
+	sprintf(num, "%d", num_dis);
+	strcat(num, str);
+	drawCNString(num);
+}
 void picked_sign(float h,float x=0,float z=0){
 	glPushMatrix();
 	glTranslatef(x,h,z);
@@ -391,6 +369,16 @@ void picked_sign(float h,float x=0,float z=0){
 	glRotatef(picked_sign_angle,0,1,0);
 	glutSolidSphere(20,4,2);
 	glPopMatrix();
+}
+
+//-----------------
+void aim(int f) {
+	glColor3f(0, 1, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBegin(GL_LINES);//瞄准
+	glVertex2f(0, 0.05); glVertex2f(0, -0.05);
+	glVertex2f(0.3, 0); glVertex2f(-0.3, 0);
+	glEnd();
 }
 void collector(int f){
 	glPushMatrix();
@@ -405,7 +393,6 @@ void collector(int f){
 	glPopMatrix();
 
 }
-
 void monitor(int f){
 	pick_[1]=pick(cos(angle_C),tan(angle_c_up),sin(angle_C),x,yh,z,640,500,1320);//-300,200,0);
 	glPushMatrix();
@@ -417,7 +404,6 @@ void monitor(int f){
 	if(screen_flag) screen();
 	glPopMatrix();	
 }
-
 void desk(int f){
 	glPushMatrix();
 	glTranslatef(0,-1000,0);
@@ -426,7 +412,6 @@ void desk(int f){
 	}
 	glPopMatrix();	
 }
-
 void anemoscope(int f){
 	pick_[2]=pick(cos(angle_C),tan(angle_c_up),sin(angle_C),x,yh,z,960,0,870);//-300,0,300);
 	glPushMatrix();
@@ -447,7 +432,6 @@ void anemoscope(int f){
 	}
 	glPopMatrix();	
 }
-
 void scissors(int f){
 	glPushMatrix();
 	glTranslatef(700,0,-400);	
@@ -486,18 +470,6 @@ void shelf(int f){
 	}
 	glPopMatrix();
 }
-
-void LC_display(float x,float y,float z,int num_dis,char* str){
-	
-	selectFont(20, GB2312_CHARSET, "楷体_GB2312");//字符显示
-	glColor3f(1.0f, 0.0f, 0.0f);
-	glRasterPos3f(x,y,z); 
-	char num[10];
-	sprintf(num,"%d",num_dis);
-	strcat(num,str);
-	drawCNString(num);
-	}
-
 void oven(int f){	
 	if (f){
 	glPushMatrix();
@@ -519,23 +491,6 @@ void oven(int f){
 	LC_display(990,300,50,oven_num,"°C");
 
 }
-
-
-
-
-
-
-float cylinder_col[30*30*5*3];
-float h=0;
-float Ch=0;
-float L=0.4;
-float rou=2.7e3,cp=880;
-float t_inf=25,t0=ENVIRONMENT_T,t;
-float tao=0,tao0=0;
-float cylinder_t[30*30*5];
-bool  cool=0;
-
-
 void wind(float y,float zmin_,float zmax_,float r,float deltaz=1){
 	if(abs(y-0)<1)return;
 	bool negative=false;
@@ -574,7 +529,6 @@ void wind(float y,float zmin_,float zmax_,float r,float deltaz=1){
 //	Circle(r,10,0,0,0,1,0,0);
 
 }
-
 void wind_array(int density_x,int density_y,bool sample_exist=true){
 	float gap=15;
 	glPushMatrix();
@@ -590,7 +544,6 @@ void wind_array(int density_x,int density_y,bool sample_exist=true){
 	}	
 	glPopMatrix();
 }
-
 void wind_tunnel(){	
 	glPushMatrix();
     glTranslatef(-500,-900,600);
@@ -611,16 +564,7 @@ void wind_tunnel(){
 	glPopMatrix();
 }
 
-
-void aim(int f){
-	glColor3f(0,1,0);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glBegin(GL_LINES);//瞄准
-	glVertex2f(0,0.05);glVertex2f(0, -0.05);
-	glVertex2f(0.3,0);glVertex2f(-0.3,0);
-	glEnd();
-}
-
+//------------------
 void obj_step_init(){
 
 	DrawList(25);//room
@@ -810,7 +754,7 @@ void obj_step_5() {
 	}
 
 }
-void help_step_init() {
+void help_init() {
 	selectFont(18, GB2312_CHARSET, "楷体_GB2312");
 	glColor3f(1.0f, 0.0f, 0.0f);////////yoooooooooooooooooooooooooooooooooooooooooooooooooooooooo
 	sprintf(stat1, "提示：室温 %d°C ", ENVIRONMENT_T);
@@ -963,6 +907,35 @@ void help_step_5() {
 	drawCNString(stat1);
 }
 
+//-----------------------
+void MenuFunc(int MenuItem)// 菜单项处理函数
+{
+	//useless
+	switch (MenuItem)
+	{
+	case 0:scene = 0; step = 0; renderScene(); break;
+	case 1:scene = 1; step = 0; renderScene(); break;
+	case 2:scene = 2; step = 0; renderScene(); break;
+	case 3:scene = 3; step = 0; renderScene(); break;
+	case 4:scene = 4; step = 0; renderScene(); break;
+	case 5:scene = 5; step = 0; renderScene(); break;
+	case 6:scene = 6; step = 0; renderScene(); break;
+	case 11:scene = 11; step = 0; renderScene(); break;
+	case 12:scene = 12; step = 0; renderScene(); break;
+	case 13:scene = 13; step = 0; renderScene(); break;
+	case 14:scene = 14; step = 0; renderScene(); break;
+	case 15:scene = 15; step = 0; renderScene(); break;
+	case 16:scene = 16; step = 0; renderScene(); break;
+
+	case 21:mover_H_ai = 2 * mover_L_ai; scene = 0; step = 0; renderScene(); break;
+	case 22:mover_H_ai = 3 * mover_L_ai; scene = 0; step = 0; renderScene(); break;
+	case 23:mover_H_ai = 4 * mover_L_ai; scene = 0; step = 0; renderScene(); break;
+
+
+	default:break;
+	}
+	cursor = false;
+}
 void renderScene(void)
 {
 	#pragma region init_renderscene
@@ -1049,22 +1022,6 @@ void renderScene(void)
 	}
 	//固定部件显示完成
 
-
-
-	if(step==0){
-
-		obj_step_0();
-	}
-
-
-    if (step==1){//选择测温部位，最后step=2
-		obj_step_1();
-	}
-
-	if(step==2){
-		obj_step_2();
-	}
-		
 	static bool init=true;//随机错误热电偶
 	if(init){
 		for(int i=1;i<MEASURE_MAX;++i){
@@ -1073,23 +1030,68 @@ void renderScene(void)
 		collector_inverse[0]=false;//认为false是错的
 		init=false;
 	}
+
+	switch (step)
+	{
+		case 0:	obj_step_0();
+		case 1:	obj_step_1();
+		case 2:	obj_step_2();
+		case 3:	obj_step_3();
+		case 4:	obj_step_4();
+		case 5:	obj_step_5();
+	}
+
+	//help
+	#pragma region unknow useful codes
+
+
+	//////////////////////////////////////
+	glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(60.0, (GLfloat) width/(GLfloat) 100, 2.0, 5.0);
+
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	gluLookAt(	0, 0, 3,   
+				0, 0, 0, 
+				0, 1, 0	);	
+	glDisable(GL_LIGHTING);
+	glViewport(0,0,width1,height);////////////////视口2//////////瞄准
 	
-	if(step==3){
-		obj_step_3();
-	}
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glEnable(GL_TEXTURE_2D);
 
-	if(step==4){
-		obj_step_4();
-	}
+	
+	glColor3f(0,1,0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBegin(GL_LINES);//瞄准
+	glVertex2f(0,0.05);glVertex2f(0, -0.05);
+	glVertex2f(0.3,0);glVertex2f(-0.3,0);
+	glEnd();
+    glColor3f(1,1,1);
+		
 
-	if(step==5){
-		obj_step_5();
-	}   
+///////////////////////////////	
 
 
+glMatrixMode(GL_PROJECTION);
+glViewport(width1,0,width-width1,height);////////////////视口4//////////提示
+
+    glLoadIdentity();
+			gluLookAt(-1,0,0,   
+				0,0,0, 
+				0,1,0);	
+				glOrtho(-100,100,-100,100,0,1000);
+	glClearColor(0,0,0,1);
+	glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
 
 
-	help_step_init();
+#pragma endregion
+
+
+	help_init();
 
 
 	#pragma region theonepicked
@@ -1121,7 +1123,7 @@ void renderScene(void)
 	if(theOnePicked==WIND_TUNNEL_PICK){
 		sprintf(stat1,"已选中：风机 ");
 	}
-#pragma endregion
+	#pragma endregion
 
 
 
@@ -1130,32 +1132,21 @@ void renderScene(void)
 		glRasterPos3f(0.0f,15.0f,stat_z);
 		drawCNString(stat1);
 	}
-
-	if(step==0){
-		help_step_0();
+	switch(step)
+	{
+		case 0: help_step_0();
+		case 1: help_step_1();
+		case 2: help_step_2();
+		case 3: help_step_3();
+		case 4: help_step_4();
 	}
 
-	if(step==1){
-		help_step_1();
-	}
-	
-	if(step==2){
-		help_step_2();
-	}
-		
-	if(step==3){
-		help_step_3();
-	}
-		
-	if(step==4){
-		help_step_4();
-	}	
 			
-	if(step==5&&!samplemove_flag2){
+	if (step==5 &&!samplemove_flag2){
 		help_step_5();
 	}	
 	
-
+#pragma region unknow codes
 /*	glRasterPos3f(0.0f,80.0f,-80.0f);
 	drawCNString(stat9);	  
 	glRasterPos3f(0.0f,70.0f,-80.0f);
@@ -1169,42 +1160,9 @@ void renderScene(void)
 	glEnd();
 	glLineWidth(1);
 
+#pragma endregion
 	glutSwapBuffers();
 }
-
-
-
-
-//??
-void MenuFunc(int MenuItem)// 菜单项处理函数
-{
-	
-	switch(MenuItem)
-	{
-	case 0:scene=0;step=0;renderScene();break;
-	case 1:scene=1;step=0;renderScene();break;
-	case 2:scene=2;step=0;renderScene();break;
-	case 3:scene=3;step=0;renderScene();break;
-	case 4:scene=4;step=0;renderScene();break;
-	case 5:scene=5;step=0;renderScene();break;
-	case 6:scene=6;step=0;renderScene();break;
-	case 11:scene=11;step=0;renderScene();break;
-	case 12:scene=12;step=0;renderScene();break;
-	case 13:scene=13;step=0;renderScene();break;
-	case 14:scene=14;step=0;renderScene();break;
-	case 15:scene=15;step=0;renderScene();break;
-	case 16:scene=16;step=0;renderScene();break;
-
-	case 21:mover_H_ai=2*mover_L_ai;scene=0;step=0;renderScene();break;
-	case 22:mover_H_ai=3*mover_L_ai;scene=0;step=0;renderScene();break;
-	case 23:mover_H_ai=4*mover_L_ai;scene=0;step=0;renderScene();break;
-
-
-	default:break;
-	}
-	cursor=false;
-}
-
 void idle()
 {
 	//sample move
@@ -1253,7 +1211,6 @@ void idle()
 	if ((!tab_flag) && (width1>width - 320)) width1 -= 10;
 	glutPostRedisplay();
 }
-
 void init_model(){
 
 	myinit_model(1, "../../2.UGmodel/3DS/1_table.3DS");
@@ -1294,8 +1251,7 @@ void init_model(){
 
 }
 
-
-/////////////////////////////////
+//----------------------
 void main()
 {     
 	// init GLUT and create window
