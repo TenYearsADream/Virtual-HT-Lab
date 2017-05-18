@@ -756,29 +756,66 @@ void obj_step_5() {
 }
 void help_init() {
 	selectFont(18, GB2312_CHARSET, "楷体_GB2312");
-	glColor3f(1.0f, 0.0f, 0.0f);////////yoooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+	glColor3f(1.0f, 0.0f, 0.0f);
+
 	sprintf(stat1, "提示：室温 %d°C ", ENVIRONMENT_T);
 	glRasterPos3f(0.0f, 70.0f, stat_z);
 	drawCNString(stat1);
+
 	sprintf(stat1, "      空气运动粘度 16.155e-6 m^2/s ");//其他室温也不会变，待改
 	glRasterPos3f(0.0f, 65.0f, stat_z);
 	drawCNString(stat1);
+
 	sprintf(stat1, "      Pr=0.702");
 	glRasterPos3f(0.0f, 60.0f, stat_z);
 	drawCNString(stat1);
+
 	sprintf(stat1, "操作说明：WSAD及鼠标控制移动");
 	glRasterPos3f(0.0f, -40.0f, stat_z);
 	drawCNString(stat1);
+
 	sprintf(stat1, "          tab键隐藏提示栏");
 	glRasterPos3f(0.0f, -45.0f, stat_z);
 	drawCNString(stat1);
+
 	sprintf(stat1, "          注意关闭输入法");
 	glRasterPos3f(0.0f, -50.0f, stat_z);
 	drawCNString(stat1);
+
 	sprintf(stat1, "          Esc强制中断实验");
 	glRasterPos3f(0.0f, -55.0f, stat_z);
 	drawCNString(stat1);
 
+	#pragma region theonepicked
+
+	if (theOnePicked == 0) {
+		sprintf(stat1, "已选中： ");
+	}
+	if (theOnePicked == COLLECTOR_PICK) {
+		sprintf(stat1, "已选中：采集仪 ");
+	}
+	if (theOnePicked == MONITOR_PICK) {
+		sprintf(stat1, "已选中：PC显示器 ");
+	}
+	if (theOnePicked == ANEMOSCOPE_PICK) {
+		sprintf(stat1, "已选中：风速仪 ");
+	}
+	if (theOnePicked == SCISSORS_PICK) {
+		sprintf(stat1, "已选中：剪刀 ");
+	}
+	if (theOnePicked == SCREW_PICK) {
+		sprintf(stat1, "已选中：螺丝刀 ");
+	}
+	if (theOnePicked == SHELF_PICK) {
+		sprintf(stat1, "已选中：支架 ");
+	}
+	if (theOnePicked == OVEN_PICK) {
+		sprintf(stat1, "已选中：加热炉 ");
+	}
+	if (theOnePicked == WIND_TUNNEL_PICK) {
+		sprintf(stat1, "已选中：风机 ");
+	}
+#pragma endregion
 	glRasterPos3f(0.0f, 50.0f, stat_z);
 	drawCNString(stat1);
 
@@ -908,6 +945,198 @@ void help_step_5() {
 }
 
 //-----------------------
+void renderScene(void)
+{
+#pragma region init_renderscene
+
+	static bool widFlag = true;
+	if (widFlag) {
+		width1 = width - 320;
+		widFlag = false;
+	}
+
+	angle_C = (angle)* PI / 180;
+	angle_c_up = (angle_up)* PI / 180;
+
+
+	// Clear Color and Depth Buffers
+	glClearColor(0.7, 0.7, 0.7, 1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	/*
+	glMatrixMode(GL_TEXTURE);
+	glLoadIdentity();*/
+	//	glDisable(GL_TEXTURE_2D);
+
+	glCullFace(GL_BACK);
+	glEnable(GL_CULL_FACE);
+
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	myinit_light();
+
+
+	glViewport(0, 0, width1, height);////////////////视口1//////////
+	gluPerspective(60.0, GLfloat(width1) / height, 1.0, 20000.0);
+	//	glOrtho(700,700,700,700, 1,20000);
+
+
+	glMatrixMode(GL_MODELVIEW);
+
+	// Reset transformations
+	glLoadIdentity();
+	// Set the camera
+	gluLookAt(x, yh, z,
+		x + cos(angle_C), yh + tan(angle_c_up), z + sin(angle_C),
+		0, 1, 0);
+
+
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+
+
+	material();
+	//glColorMaterial(GL_FRONT,GL_DIFFUSE);
+	glColorMaterial(GL_FRONT, GL_AMBIENT);
+	glEnable(GL_COLOR_MATERIAL);
+	glEnable(GL_BLEND); // 打开混合
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+
+
+
+	/*
+	glPushMatrix();//粒子效果，接应于约850行
+	glRotatef(90,0,1,0);
+	glTranslatef(-600,-100,600);*/
+
+#pragma endregion
+
+
+	//find out which item is picked
+	theOnePicked = my_pick.printPickedNum(cos(angle_C), tan(angle_c_up), sin(angle_C), x, yh, z);
+	/*
+	if(x>xmax)x=xmax;//移动区域限制
+	else if(x<xmin)x=xmin;
+	if(z>zmax)z=zmax;
+	else if(z<zmin)z=zmin;
+	*/
+
+	if (!(step == -1)) {
+		obj_step_init();
+	}
+	//固定部件显示完成
+
+	static bool init = true;//随机错误热电偶
+	if (init) {
+		for (int i = 1; i<MEASURE_MAX; ++i) {
+			collector_inverse[i] = int(random(1, 3)) - 1;
+		}
+		collector_inverse[0] = false;//认为false是错的
+		init = false;
+	}
+
+	switch (step)
+	{
+	case 0:	obj_step_0();
+	case 1:	obj_step_1();
+	case 2:	obj_step_2();
+	case 3:	obj_step_3();
+	case 4:	obj_step_4();
+	case 5:	obj_step_5();
+	}
+
+	//help
+#pragma region unknow useful codes
+
+
+	//////////////////////////////////////
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluPerspective(60.0, (GLfloat)width / (GLfloat)100, 2.0, 5.0);
+
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	gluLookAt(0, 0, 3,
+		0, 0, 0,
+		0, 1, 0);
+	glDisable(GL_LIGHTING);
+	glViewport(0, 0, width1, height);////////////////视口2//////////瞄准
+
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glEnable(GL_TEXTURE_2D);
+
+
+	glColor3f(0, 1, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBegin(GL_LINES);//瞄准
+	glVertex2f(0, 0.05); glVertex2f(0, -0.05);
+	glVertex2f(0.3, 0); glVertex2f(-0.3, 0);
+	glEnd();
+	glColor3f(1, 1, 1);
+
+
+	///////////////////////////////	
+
+
+	glMatrixMode(GL_PROJECTION);
+	glViewport(width1, 0, width - width1, height);////////////////视口4//////////提示
+
+	glLoadIdentity();
+	gluLookAt(-1, 0, 0,
+		0, 0, 0,
+		0, 1, 0);
+	glOrtho(-100, 100, -100, 100, 0, 1000);
+	glClearColor(0, 0, 0, 1);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+
+#pragma endregion
+
+	//--------------
+	help_init();
+
+	if (step >= 2 && step<5) {
+		sprintf(stat1, "加热中，试样当前温度：%.2f °C", t0);
+		glRasterPos3f(0.0f, 15.0f, stat_z);
+		drawCNString(stat1);
+	}
+	switch (step)
+	{
+	case 0: help_step_0();
+	case 1: help_step_1();
+	case 2: help_step_2();
+	case 3: help_step_3();
+	case 4: help_step_4();
+	}
+
+
+	if (step == 5 && !samplemove_flag2) {
+		help_step_5();
+	}
+
+#pragma region unknow codes
+	/*	glRasterPos3f(0.0f,80.0f,-80.0f);
+	drawCNString(stat9);
+	glRasterPos3f(0.0f,70.0f,-80.0f);
+	drawCNString(stat10);*/
+
+	glColor3f(0.0f, 0.0f, 0.0f);
+	glLineWidth(5);
+	glBegin(GL_LINES);
+	glVertex3f(0.0f, 500.0f, -0.0f);
+	glVertex3f(0.0f, -500.0f, -0.0f);
+	glEnd();
+	glLineWidth(1);
+
+#pragma endregion
+	glutSwapBuffers();
+}
 void MenuFunc(int MenuItem)// 菜单项处理函数
 {
 	//useless
@@ -935,233 +1164,6 @@ void MenuFunc(int MenuItem)// 菜单项处理函数
 	default:break;
 	}
 	cursor = false;
-}
-void renderScene(void)
-{
-	#pragma region init_renderscene
-
-	static bool widFlag=true;
-	if(widFlag){
-		width1=width-320;
-		widFlag=false;
-	}
-
-	angle_C = (angle) * PI /180;
-	angle_c_up=(angle_up) * PI /180;
-
-
-	// Clear Color and Depth Buffers
-	glClearColor(0.7,0.7,0.7,1);
-	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-	
-
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-/*
-	glMatrixMode(GL_TEXTURE);
-    glLoadIdentity();*/
-//	glDisable(GL_TEXTURE_2D);
-
-	glCullFace(GL_BACK);
-    glEnable(GL_CULL_FACE);
-
-
-	glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-	myinit_light();
-
-
-    glViewport(0,0,width1,height);////////////////视口1//////////
-    gluPerspective(60.0, GLfloat(width1)/height, 1.0, 20000.0);
-//	glOrtho(700,700,700,700, 1,20000);
-
-
-	glMatrixMode(GL_MODELVIEW);
-	
-	// Reset transformations
-	glLoadIdentity();
-	// Set the camera
-	gluLookAt(	x, yh, z,   
-				x+cos(angle_C), yh+tan(angle_c_up) , z+sin(angle_C), 
-				0,1,0	);
-
-
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-
-
-	material();
-	//glColorMaterial(GL_FRONT,GL_DIFFUSE);
-	glColorMaterial(GL_FRONT,GL_AMBIENT); 
-    glEnable(GL_COLOR_MATERIAL);
-	glEnable(GL_BLEND); // 打开混合
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
-
-
-
-
-/*
-		glPushMatrix();//粒子效果，接应于约850行
-        glRotatef(90,0,1,0);
-        glTranslatef(-600,-100,600);*/
-
-#pragma endregion
-
-	
-	//find out which item is picked
-	theOnePicked=my_pick.printPickedNum(cos(angle_C),tan(angle_c_up),sin(angle_C),x,yh,z);
-	/*
-	if(x>xmax)x=xmax;//移动区域限制
-	else if(x<xmin)x=xmin;
-	if(z>zmax)z=zmax;
-	else if(z<zmin)z=zmin;
-	*/
-
-    if (!(step==-1)){
-		obj_step_init();
-	}
-	//固定部件显示完成
-
-	static bool init=true;//随机错误热电偶
-	if(init){
-		for(int i=1;i<MEASURE_MAX;++i){
-			collector_inverse[i]=int(random(1,3))-1;
-		}
-		collector_inverse[0]=false;//认为false是错的
-		init=false;
-	}
-
-	switch (step)
-	{
-		case 0:	obj_step_0();
-		case 1:	obj_step_1();
-		case 2:	obj_step_2();
-		case 3:	obj_step_3();
-		case 4:	obj_step_4();
-		case 5:	obj_step_5();
-	}
-
-	//help
-	#pragma region unknow useful codes
-
-
-	//////////////////////////////////////
-	glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    gluPerspective(60.0, (GLfloat) width/(GLfloat) 100, 2.0, 5.0);
-
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	gluLookAt(	0, 0, 3,   
-				0, 0, 0, 
-				0, 1, 0	);	
-	glDisable(GL_LIGHTING);
-	glViewport(0,0,width1,height);////////////////视口2//////////瞄准
-	
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	glEnable(GL_TEXTURE_2D);
-
-	
-	glColor3f(0,1,0);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glBegin(GL_LINES);//瞄准
-	glVertex2f(0,0.05);glVertex2f(0, -0.05);
-	glVertex2f(0.3,0);glVertex2f(-0.3,0);
-	glEnd();
-    glColor3f(1,1,1);
-		
-
-///////////////////////////////	
-
-
-glMatrixMode(GL_PROJECTION);
-glViewport(width1,0,width-width1,height);////////////////视口4//////////提示
-
-    glLoadIdentity();
-			gluLookAt(-1,0,0,   
-				0,0,0, 
-				0,1,0);	
-				glOrtho(-100,100,-100,100,0,1000);
-	glClearColor(0,0,0,1);
-	glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
-
-#pragma endregion
-
-
-	help_init();
-
-
-	#pragma region theonepicked
-
-	if(theOnePicked==0){
-		sprintf(stat1,"已选中： ");  
-	}
-	if(theOnePicked==COLLECTOR_PICK){
-		sprintf(stat1,"已选中：采集仪 ");  
-	}
-	if(theOnePicked==MONITOR_PICK){
-		sprintf(stat1,"已选中：PC显示器 ");  
-	}
-	if(theOnePicked==ANEMOSCOPE_PICK){
-		sprintf(stat1,"已选中：风速仪 ");  
-	}
-	if(theOnePicked==SCISSORS_PICK){
-		sprintf(stat1,"已选中：剪刀 ");
-	}
-	if(theOnePicked==SCREW_PICK){
-		sprintf(stat1,"已选中：螺丝刀 ");
-	}
-	if(theOnePicked==SHELF_PICK){
-		sprintf(stat1,"已选中：支架 ");
-	}
-	if(theOnePicked==OVEN_PICK){
-		sprintf(stat1,"已选中：加热炉 ");
-	}
-	if(theOnePicked==WIND_TUNNEL_PICK){
-		sprintf(stat1,"已选中：风机 ");
-	}
-	#pragma endregion
-
-
-
-	if(step>=2&&step<5){
-		sprintf(stat1,"加热中，试样当前温度：%.2f °C",t0);
-		glRasterPos3f(0.0f,15.0f,stat_z);
-		drawCNString(stat1);
-	}
-	switch(step)
-	{
-		case 0: help_step_0();
-		case 1: help_step_1();
-		case 2: help_step_2();
-		case 3: help_step_3();
-		case 4: help_step_4();
-	}
-
-			
-	if (step==5 &&!samplemove_flag2){
-		help_step_5();
-	}	
-	
-#pragma region unknow codes
-/*	glRasterPos3f(0.0f,80.0f,-80.0f);
-	drawCNString(stat9);	  
-	glRasterPos3f(0.0f,70.0f,-80.0f);
-	drawCNString(stat10);*/
-
-	glColor3f(0.0f, 0.0f, 0.0f);
-		glLineWidth(5);
-	glBegin(GL_LINES);
-		glVertex3f(0.0f,500.0f,-0.0f);
-		glVertex3f(0.0f,-500.0f,-0.0f);
-	glEnd();
-	glLineWidth(1);
-
-#pragma endregion
-	glutSwapBuffers();
 }
 void idle()
 {
@@ -1273,7 +1275,6 @@ void main()
 	glutMouseFunc(Mouse);
 	glutPassiveMotionFunc(mousePassiveMotion);
 
-	createGLUTMenus();
 
 	glutIgnoreKeyRepeat(1);//无视连发
 	ShowCursor(cursor);  // 隐藏鼠标指针
