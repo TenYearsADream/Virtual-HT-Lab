@@ -114,6 +114,8 @@ extern bool test_mode;
 int mover_H_ai=1,mover_L_ai=1;
 int pic=0;//作图
 int pick_flag=0;
+
+float stat_z = -10;
 #pragma endregion
 
 
@@ -619,8 +621,348 @@ void aim(int f){
 	glEnd();
 }
 
-/*
-*/
+void obj_step_init(){
+
+	DrawList(25);//room
+DrawList(26);
+DrawList(27);
+DrawList(28);
+glPushMatrix();
+glTranslatef(400,0,200);
+DrawList(29);
+glPopMatrix();
+
+
+collector(1);
+monitor(1);
+desk(1);
+anemoscope(1);
+screw(1);
+shelf(1);
+oven(1);
+scissors(1);
+
+wind_tunnel();
+aim(1);
+
+glPushMatrix();
+glTranslatef(-350,200,200);
+glRotatef(sample_t,0,-1,0);
+glTranslatef(0,0,-sample_t*12.0);
+glRotatef(sample_t,0,-1,0);
+sample(sample_time);//objs.cpp
+glPopMatrix();
+}
+void obj_step_0() {
+	//捏试样,********注意添加选择材料()变颜色
+	if (enter_flag) {
+		//获取sample_radius[];
+		step = 1;
+		enter_flag = false;
+
+		//all_point_xyz赋值
+		for (int i = 0; i<SAMPLE_DIVISION + 1; i++) {
+			for (int j = 0; j<6; j++) {
+				all_point_xyz[i * 3 * 6 + j * 3] = i * 300 / SAMPLE_DIVISION;//x=
+				all_point_xyz[i * 3 * 6 + j * 3 + 1] = sample_radius[i] * sin(j / 3.0f*PI);//y=
+				all_point_xyz[i * 3 * 6 + j * 3 + 2] = sample_radius[i] * cos(j / 3.0f*PI);//z=
+			}
+		}
+	}
+	if (space_flag) {
+		//多次获取测量点
+		space_flag = false;
+		material_no++;
+		if (material_no>1)material_no = 0;//0-AL 1-STEEL
+	}
+}
+void obj_step_1() {
+	if (space_flag) {
+		//多次获取测量点
+		space_flag = false;
+		if (measure_point<MEASURE_MAX) {
+			measure_point_xyz[measure_point * 3] = cursor_position * 300 / SAMPLE_DIVISION;//x=
+			measure_point_xyz[measure_point * 3 + 1] = sample_radius[cursor_position] * sin(cursor_angle / 6.0*PI);//y=
+			measure_point_xyz[measure_point * 3 + 2] = -sample_radius[cursor_position] * cos(cursor_angle / 6.0*PI);//z=
+																													//step=2;
+			++measure_point;
+		}
+		else;//提示过多
+	}
+
+	if (theOnePicked == OVEN_PICK&&mouseLeftDown&&measure_point>0
+		) {
+		for (int i = 0; i<9; i++)cout << measure_point_xyz[i] << '\n';//获取measure_point_xyz及measure_point
+		samplemove_flag1 = true;
+		ovenopen_flag = true;
+		step = 2;
+	}
+	/*
+	if(measure_point>MEASURE_MAX-1||enter_flag){
+	step=2;
+	enter_flag=false;
+	}*/
+}
+void obj_step_2() {
+	//试样移位，待加热命令，step=3
+	//提示上下左右该温度，回车确认
+	if (enter_flag) {
+		//获取sample_radius[];
+		ovenclose_flag = true;
+		enter_flag = false;
+		myGetSampleDat(OUTPUT_DATA_SAMPLE, material_no, sample_radius, SAMPLE_DIVISION + 1, oven_num);
+	}
+	if (theOnePicked == COLLECTOR_PICK&&mouseLeftDown&&ovendoor_t<10) {
+		step = 3;
+		collector_flag = 1;
+	}
+
+}
+void obj_step_3() {
+	//开始加热，确认结束后，step=4；期间连接热电偶
+	if (theOnePicked == MONITOR_PICK&&mouseLeftDown) {
+		//			if(screen_flag);//清空buffer数据,暂未实现
+		screen_flag = true;
+	}
+	if (collector_flag) {
+		for (int i = 0; i<measure_point; ++i) {
+			thermocouple(-10, 350, 170 + i * 60 / measure_point, 15, 100, 170 + i * 60 / measure_point, -15, 100, 170 + i * 60 / measure_point, !(collector_flag - i - 1), collector_inverse[i]);
+		}//collector_inverse
+	}
+
+	if (enter_flag) {
+		//监测热电偶是否都正确
+		for (int i = 0; i<measure_point; ++i) {
+			if (collector_inverse[i] == true) step = 4;
+			else {
+				step = 3; break;//提示存在错误
+			}
+		}
+		enter_flag = false;
+	}
+	if (space_flag) {
+		//获取sample_radius[];
+		if (collector_flag <= MEASURE_MAX) collector_inverse[collector_flag - 1] = !collector_inverse[collector_flag - 1];
+		space_flag = false;
+	}
+
+}
+void obj_step_4() {
+	//结束加热		
+	for (int i = 0; i<measure_point; ++i) {
+		thermocouple(-10, 350, 170 + i * 60 / measure_point, 15, 100, 170 + i * 60 / measure_point, -15, 100, 170 + i * 60 / measure_point, !(collector_flag - i - 1), collector_inverse[i]);
+	}
+
+	if (theOnePicked == WIND_TUNNEL_PICK&&mouseLeftDown) {//选择冷却模式,完成后回车
+		windtunnel_flag = 1;
+	}
+
+	if (theOnePicked == ANEMOSCOPE_PICK&&mouseLeftDown) {//测温测风速
+		anemoscope_flag = 1;
+	}
+
+	if ((anemoscope_flag != 1) && enter_flag) {
+		enter_flag = false;
+	}
+
+	if (anemoscope_flag == 1) {
+		float kx = 1.125 - 0.001*abs(anemoscope_x - 325), kz = anemoscope_z / 1750 + 29.0 / 35.0;
+		if (kx>1 || windtunnel_flag == 0)kx = 1;
+		if (kz>1 || windtunnel_flag == 0)kz = 1;
+		anemoscope_speed = sqrt(kx*kz)*windtunnel_flag;
+		anemoscope_temp = sqrt(kx*kz)*(ENVIRONMENT_T - anemoscope_speed);
+		if (enter_flag) {
+			myGetLocationDat(OUTPUT_DATA_LOCATION, measure_point, measure_point_xyz, anemoscope_speed, anemoscope_temp);
+			system(SEND_EXE_ADDRESS);///设置容错措施；进入等待界面
+			myReadReceiveDat(INPUT_DATA, timeInterval, duration);
+			//vector<vector<int>> temperature_measure_vec;
+			//vector<vector<int>> temperature_all_vec;
+
+			anemoscope_flag = 2;
+			enter_flag = false;
+		}
+	}
+
+
+	if (oven_num - int(t0)>2) {
+		//提示正在加热
+		//升温
+	}
+	else {//冷却
+		if (anemoscope_flag == 2) {
+			samplemove_flag2 = true;
+			ovenopen_flag = true;
+			step = 5;
+		}
+	}
+
+}
+void obj_step_5() {
+	//开始冷却
+	if (!samplemove_flag2) {
+		ovenclose_flag = true;
+		for (int i = 0; i<measure_point; ++i) {
+			thermocouple(-500 + measure_point_xyz[i * 3], 200 + measure_point_xyz[i * 3 + 1], 200 + measure_point_xyz[i * 3 + 2],
+				45, 135, 170 + i * 60 / measure_point,
+				15, 135, 170 + i * 60 / measure_point,
+				false, collector_inverse[i]);
+		}
+	}
+
+}
+void help_step_init() {
+	selectFont(18, GB2312_CHARSET, "楷体_GB2312");
+	glColor3f(1.0f, 0.0f, 0.0f);////////yoooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+	sprintf(stat1, "提示：室温 %d°C ", ENVIRONMENT_T);
+	glRasterPos3f(0.0f, 70.0f, stat_z);
+	drawCNString(stat1);
+	sprintf(stat1, "      空气运动粘度 16.155e-6 m^2/s ");//其他室温也不会变，待改
+	glRasterPos3f(0.0f, 65.0f, stat_z);
+	drawCNString(stat1);
+	sprintf(stat1, "      Pr=0.702");
+	glRasterPos3f(0.0f, 60.0f, stat_z);
+	drawCNString(stat1);
+	sprintf(stat1, "操作说明：WSAD及鼠标控制移动");
+	glRasterPos3f(0.0f, -40.0f, stat_z);
+	drawCNString(stat1);
+	sprintf(stat1, "          tab键隐藏提示栏");
+	glRasterPos3f(0.0f, -45.0f, stat_z);
+	drawCNString(stat1);
+	sprintf(stat1, "          注意关闭输入法");
+	glRasterPos3f(0.0f, -50.0f, stat_z);
+	drawCNString(stat1);
+	sprintf(stat1, "          Esc强制中断实验");
+	glRasterPos3f(0.0f, -55.0f, stat_z);
+	drawCNString(stat1);
+
+	glRasterPos3f(0.0f, 50.0f, stat_z);
+	drawCNString(stat1);
+
+	sprintf(stat1, "当前步骤：");
+	glRasterPos3f(0.0f, 5.0f, stat_z);
+	drawCNString(stat1);
+}
+void help_step_0() {
+	sprintf(stat1, "方向键改变试样形状");
+	glRasterPos3f(0.0f, 0.0f, stat_z);
+	drawCNString(stat1);
+	switch (material_no) {
+	case 0:	sprintf(stat1, "空格变换材料，当前：铝    "); break;
+	case 1: sprintf(stat1, "空格变换材料，当前：不锈钢");
+	}
+	glRasterPos3f(0.0f, -5.0f, stat_z);
+	drawCNString(stat1);
+	sprintf(stat1, "当前直径:%dmm 当前位置:%dmm", sample_radius[cursor_position], (cursor_position - 5) * 300 / SAMPLE_DIVISION);
+	glRasterPos3f(0.0f, -10.0f, stat_z);
+	drawCNString(stat1);
+	sprintf(stat1, "回车确认");
+	glRasterPos3f(0.0f, -15.0f, stat_z);
+	drawCNString(stat1);
+}
+void help_step_1() {
+	sprintf(stat1, "方向键移动光标");
+	glRasterPos3f(0.0f, 0.0f, stat_z);
+	drawCNString(stat1);
+	sprintf(stat1, "空格确定测温位置");
+	glRasterPos3f(0.0f, -5.0f, stat_z);
+	drawCNString(stat1);
+	sprintf(stat1, "最多%d个(%d/%d)", MEASURE_MAX, measure_point, MEASURE_MAX);
+	glRasterPos3f(0.0f, -10.0f, stat_z);
+	drawCNString(stat1);
+	sprintf(stat1, "全部完成后左键点选加热炉");
+	glRasterPos3f(0.0f, -15.0f, stat_z);
+	drawCNString(stat1);
+}
+void help_step_2() {
+	if (ovendoor_t>10) {
+		sprintf(stat1, "方向键选择加热温度，回车确认");
+		glRasterPos3f(0.0f, 0.0f, stat_z);
+		drawCNString(stat1);
+		sprintf(stat1, "当前：%d°C", oven_num);
+		glRasterPos3f(0.0f, -5.0f, stat_z);
+		drawCNString(stat1);
+	}
+	if (ovendoor_t<10) {
+		sprintf(stat1, "左键点选数据采集仪连接热电偶");
+		glRasterPos3f(0.0f, 0.0f, stat_z);
+		drawCNString(stat1);
+	}
+}
+void help_step_3() {
+	if (collector_flag == 0) {
+		sprintf(stat1, "左键点选数据采集仪连接热电偶");
+		glRasterPos3f(0.0f, 0.0f, stat_z);
+		drawCNString(stat1);
+	}
+	if (collector_flag == 1 && !screen_flag) {
+		sprintf(stat1, "连接完成");
+		glRasterPos3f(0.0f, 0.0f, stat_z);
+		drawCNString(stat1);
+		sprintf(stat1, "左键点选显示屏查看温度输出结果");
+		glRasterPos3f(0.0f, -5.0f, stat_z);
+		drawCNString(stat1);
+	}
+	if (screen_flag) {
+		sprintf(stat1, "若正负极接反，输出温度为异常值");
+		glRasterPos3f(0.0f, -0.0f, stat_z);
+		drawCNString(stat1);
+		sprintf(stat1, "上下方向键改变选中的热电偶");
+		glRasterPos3f(0.0f, -5.0f, stat_z);
+		drawCNString(stat1);
+		sprintf(stat1, "空格转换正负极");
+		glRasterPos3f(0.0f, -10.0f, stat_z);
+		drawCNString(stat1);
+		sprintf(stat1, "直到完全正确后按回车");
+		glRasterPos3f(0.0f, -15.0f, stat_z);
+		drawCNString(stat1);
+	}
+}
+void help_step_4() {
+	if (windtunnel_flag == 0 && anemoscope_flag == 0) {
+		sprintf(stat1, "强制冷却：左键点选风机");
+		glRasterPos3f(0.0f, 0.0f, stat_z);
+		drawCNString(stat1);
+		sprintf(stat1, "自然冷却：直接进入下一步");
+		glRasterPos3f(0.0f, -5.0f, stat_z);
+		drawCNString(stat1);
+	}
+	if (windtunnel_flag>0 && anemoscope_flag == 0) {
+		sprintf(stat1, "上下方向键改变出风大小");
+		glRasterPos3f(0.0f, 0.0f, stat_z);
+		drawCNString(stat1);
+		sprintf(stat1, "当前%d档", windtunnel_flag);
+		glRasterPos3f(0.0f, -5.0f, stat_z);
+		drawCNString(stat1);
+	}
+	if (anemoscope_flag == 0) {
+		sprintf(stat1, "左键点选热线风速仪");
+		glRasterPos3f(0.0f, -10.0f, stat_z);
+		drawCNString(stat1);
+	}
+	if (anemoscope_flag == 1) {
+		sprintf(stat1, "方向键移动热线风速仪");
+		glRasterPos3f(0.0f, 0.0f, stat_z);
+		drawCNString(stat1);
+		sprintf(stat1, "测量气流温度及速度");
+		glRasterPos3f(0.0f, -5.0f, stat_z);
+		drawCNString(stat1);
+		sprintf(stat1, "尽量靠近试样支架获得准确数据");
+		glRasterPos3f(0.0f, -10.0f, stat_z);
+		drawCNString(stat1);
+		sprintf(stat1, "温度:%.2f°C 风速:%.2f m/s", anemoscope_temp, anemoscope_speed);
+		glRasterPos3f(0.0f, -15.0f, stat_z);
+		drawCNString(stat1);
+		sprintf(stat1, "回车确认当前数据,开始冷却");
+		glRasterPos3f(0.0f, -20.0f, stat_z);
+		drawCNString(stat1);
+	}
+}
+void help_step_5() {
+	sprintf(stat1, "冷却开始");
+	glRasterPos3f(0.0f, 0.0f, stat_z);
+	drawCNString(stat1);
+}
+
 void renderScene(void)
 {
 	#pragma region init_renderscene
@@ -703,108 +1045,24 @@ void renderScene(void)
 	*/
 
     if (!(step==-1)){
-			
-		DrawList(25);//room
-		DrawList(26);
-		DrawList(27);
-		DrawList(28);
-		glPushMatrix();
-        glTranslatef(400,0,200);
-		DrawList(29);
-		glPopMatrix();
-		
-
-	    collector(1);
-	    monitor(1);
-	    desk(1);	
-	    anemoscope(1);
-	    screw(1);
-	    shelf(1);
-	    oven(1);
-	    scissors(1);
-	    
-	    wind_tunnel();
-	    aim(1);
-	    
-	    glPushMatrix();
-	    glTranslatef(-350,200,200);
-	    glRotatef(sample_t,0,-1,0);
-	    glTranslatef(0,0,-sample_t*12.0);
-	    glRotatef(sample_t,0,-1,0);
-	    sample(sample_time);//objs.cpp
-	    glPopMatrix();
-
+		obj_step_init();
 	}
 	//固定部件显示完成
 
 
 
-	if(step==0){//捏试样,********注意添加选择材料()变颜色
-		if(enter_flag){
-			//获取sample_radius[];
-			step=1;
-			enter_flag=false;
+	if(step==0){
 
-			//all_point_xyz赋值
-			for(int i=0;i<SAMPLE_DIVISION+1;i++){
-				for(int j=0;j<6;j++){
-					all_point_xyz[i*3*6+j*3]=i*300/SAMPLE_DIVISION;//x=
-					all_point_xyz[i*3*6+j*3+1]= sample_radius[i]*sin(j/3.0f*PI);//y=
-					all_point_xyz[i*3*6+j*3+2]= sample_radius[i]*cos(j/3.0f*PI);//z=
-				}
-			}			
-		}
-		if(space_flag){
-			//多次获取测量点
-			space_flag=false;
-			material_no++;
-			if(material_no>1)material_no=0;//0-AL 1-STEEL
-		}
+		obj_step_0();
 	}
 
 
     if (step==1){//选择测温部位，最后step=2
-		if(space_flag){
-			//多次获取测量点
-			space_flag=false;
-			if(measure_point<MEASURE_MAX){
-				measure_point_xyz[measure_point*3]=cursor_position*300/SAMPLE_DIVISION;//x=
-				measure_point_xyz[measure_point*3+1]= sample_radius[cursor_position]*sin(cursor_angle/6.0*PI);//y=
-				measure_point_xyz[measure_point*3+2]=-sample_radius[cursor_position]*cos(cursor_angle/6.0*PI);//z=
-				//step=2;
-				++measure_point;
-			}
-			else ;//提示过多
-		}
-		
-		if(theOnePicked==OVEN_PICK&&mouseLeftDown&&measure_point>0
-			){
-			for(int i=0;i<9;i++)cout<<measure_point_xyz[i]<<'\n';//获取measure_point_xyz及measure_point
-			samplemove_flag1=true;
-			ovenopen_flag=true;
-			step=2;
-		}
-/*
-		if(measure_point>MEASURE_MAX-1||enter_flag){
-			step=2;
-			enter_flag=false;
-		}*/
+		obj_step_1();
 	}
 
 	if(step==2){
-		//试样移位，待加热命令，step=3
-		//提示上下左右该温度，回车确认
-		if(enter_flag){
-			//获取sample_radius[];
-			ovenclose_flag=true;
-			enter_flag=false;
-			myGetSampleDat(OUTPUT_DATA_SAMPLE,material_no,sample_radius,SAMPLE_DIVISION+1,oven_num);
-		}		
-		if(theOnePicked==COLLECTOR_PICK&&mouseLeftDown&&ovendoor_t<10){
-			step=3;
-			collector_flag=1;
-		}
-
+		obj_step_2();
 	}
 		
 	static bool init=true;//随机错误热电偶
@@ -817,184 +1075,22 @@ void renderScene(void)
 	}
 	
 	if(step==3){
-		//开始加热，确认结束后，step=4；期间连接热电偶
-		if(theOnePicked==MONITOR_PICK&&mouseLeftDown){
-//			if(screen_flag);//清空buffer数据,暂未实现
-			screen_flag=true;
-		}
-		if(collector_flag){
-			for(int i=0;i<measure_point;++i){
-				thermocouple(-10,350,170+i*60/measure_point,15,100,170+i*60/measure_point,-15,100,170+i*60/measure_point,!(collector_flag-i-1),collector_inverse[i]);
-			}//collector_inverse
-		}
-
-		if(enter_flag){
-			//监测热电偶是否都正确
-			for(int i=0;i<measure_point;++i){
-				if(collector_inverse[i]==true) step=4;
-				else {
-					step=3;break;//提示存在错误
-				}
-			}
-			enter_flag=false;
-		}
-		if(space_flag){
-			//获取sample_radius[];
-			if(collector_flag<=MEASURE_MAX) collector_inverse[collector_flag-1]=!collector_inverse[collector_flag-1];
-			space_flag=false;
-		}
-
+		obj_step_3();
 	}
 
-//	cout<<"t0"<<t0<<'\n';
 	if(step==4){
-		//结束加热		
-		for(int i=0;i<measure_point;++i){
-			thermocouple(-10,350,170+i*60/measure_point,15,100,170+i*60/measure_point,-15,100,170+i*60/measure_point,!(collector_flag-i-1),collector_inverse[i]);
-		}
-
-		if(theOnePicked==WIND_TUNNEL_PICK&&mouseLeftDown){//选择冷却模式,完成后回车
-			windtunnel_flag=1;
-		}		
-		
-		if(theOnePicked==ANEMOSCOPE_PICK&&mouseLeftDown){//测温测风速
-			anemoscope_flag=1;
-		}
-		
-		if((anemoscope_flag!=1)&&enter_flag){	
-			enter_flag=false;
-		}
-
-		if(anemoscope_flag==1){	
-			float kx=1.125-0.001*abs(anemoscope_x-325),kz=anemoscope_z/1750+29.0/35.0;
-			if(kx>1||windtunnel_flag==0)kx=1;
-			if(kz>1||windtunnel_flag==0)kz=1;
-	        anemoscope_speed=sqrt(kx*kz)*windtunnel_flag;
-			anemoscope_temp=sqrt(kx*kz)*(ENVIRONMENT_T-anemoscope_speed);
-			if(enter_flag){		
-			myGetLocationDat(OUTPUT_DATA_LOCATION,measure_point,measure_point_xyz,anemoscope_speed,anemoscope_temp);
-			system(SEND_EXE_ADDRESS);///设置容错措施；进入等待界面
-			myReadReceiveDat(INPUT_DATA,timeInterval,duration);
-			//vector<vector<int>> temperature_measure_vec;
-			//vector<vector<int>> temperature_all_vec;
-			
-			anemoscope_flag=2;
-			enter_flag=false;
-		}
-		}
-
-
-		if(oven_num-int(t0)>2){
-			//提示正在加热
-			//升温
-		}
-		else {//冷却
-			if(anemoscope_flag==2){
-				samplemove_flag2=true;
-				ovenopen_flag=true;
-				step=5;
-			}
-		}
-		
+		obj_step_4();
 	}
 
 	if(step==5){
-		//开始冷却
-		if(!samplemove_flag2){
-			ovenclose_flag=true;
-			for(int i=0;i<measure_point;++i){
-				thermocouple(-500+measure_point_xyz[i*3],200+measure_point_xyz[i*3+1],200+measure_point_xyz[i*3+2],
-					45,135,170+i*60/measure_point,
-				    15,135,170+i*60/measure_point,
-					false,collector_inverse[i]);
-		    }
-		}
-
+		obj_step_5();
 	}   
-//	glPopMatrix();	接应上面粒子
-	
-
-if(particle_i){	initialparticles();particle_i=false;}//fire
-if(!particle_end) DrawGLScene();
-
-/*	glBindTexture(GL_TEXTURE_2D, texGround);
-//	minit_list();
-	    glEnable(GL_COLOR_MATERIAL);
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	    glColor3f(0.72,0.49,0.02);
 
 
 
-	*/
-	//////////////////////////////////////
-	glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    gluPerspective(60.0, (GLfloat) width/(GLfloat) 100, 2.0, 5.0);
 
+	help_step_init();
 
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	gluLookAt(	0, 0, 3,   
-				0, 0, 0, 
-				0, 1, 0	);	
-	glDisable(GL_LIGHTING);
-	glViewport(0,0,width1,height);////////////////视口2//////////瞄准
-	
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	glEnable(GL_TEXTURE_2D);
-
-	
-	glColor3f(0,1,0);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glBegin(GL_LINES);//瞄准
-	glVertex2f(0,0.05);glVertex2f(0, -0.05);
-	glVertex2f(0.3,0);glVertex2f(-0.3,0);
-	glEnd();
-    glColor3f(1,1,1);
-		
-
-///////////////////////////////	
-
-
-glMatrixMode(GL_PROJECTION);
-glViewport(width1,0,width-width1,height);////////////////视口4//////////提示
-
-    glLoadIdentity();
-			gluLookAt(-1,0,0,   
-				0,0,0, 
-				0,1,0);	
-				glOrtho(-100,100,-100,100,0,1000);
-	glClearColor(0,0,0,1);
-	glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
-
-
-	float stat_z=-10;
-
-	selectFont(18, GB2312_CHARSET, "楷体_GB2312");
-	glColor3f(1.0f, 0.0f, 0.0f);////////yoooooooooooooooooooooooooooooooooooooooooooooooooooooooo
-	sprintf(stat1,"提示：室温 %d°C ",ENVIRONMENT_T);
-	glRasterPos3f(0.0f,70.0f,stat_z); 
-	drawCNString(stat1);
-    sprintf(stat1,"      空气运动粘度 16.155e-6 m^2/s ");//其他室温也不会变，待改
-	glRasterPos3f(0.0f,65.0f,stat_z);
-	drawCNString(stat1);
-	sprintf(stat1,"      Pr=0.702");
-	glRasterPos3f(0.0f,60.0f,stat_z);
-	drawCNString(stat1);
-	sprintf(stat1,"操作说明：WSAD及鼠标控制移动");
-	glRasterPos3f(0.0f,-40.0f,stat_z);
-	drawCNString(stat1);
-	sprintf(stat1,"          tab键隐藏提示栏");
-	glRasterPos3f(0.0f,-45.0f,stat_z);
-	drawCNString(stat1);
-	sprintf(stat1,"          注意关闭输入法");
-	glRasterPos3f(0.0f,-50.0f,stat_z);
-	drawCNString(stat1);
-	sprintf(stat1,"          Esc强制中断实验");
-	glRasterPos3f(0.0f,-55.0f,stat_z);
-	drawCNString(stat1);
 
 	#pragma region theonepicked
 
@@ -1027,12 +1123,7 @@ glViewport(width1,0,width-width1,height);////////////////视口4//////////提示
 	}
 #pragma endregion
 
-	glRasterPos3f(0.0f,50.0f,stat_z);
-	drawCNString(stat1);
 
-	sprintf(stat1,"当前步骤：");	
-	glRasterPos3f(0.0f,5.0f,stat_z);
-	drawCNString(stat1);
 
 	if(step>=2&&step<5){
 		sprintf(stat1,"加热中，试样当前温度：%.2f °C",t0);
@@ -1041,129 +1132,27 @@ glViewport(width1,0,width-width1,height);////////////////视口4//////////提示
 	}
 
 	if(step==0){
-		sprintf(stat1,"方向键改变试样形状");	
-		glRasterPos3f(0.0f,0.0f,stat_z);
-		drawCNString(stat1);
-		switch(material_no){
-		case 0:	sprintf(stat1,"空格变换材料，当前：铝    ");break;
-		case 1: sprintf(stat1,"空格变换材料，当前：不锈钢"); 
-		}
-		glRasterPos3f(0.0f,-5.0f,stat_z);
-		drawCNString(stat1);
-		sprintf(stat1,"当前直径:%dmm 当前位置:%dmm",sample_radius[cursor_position],(cursor_position-5)*300/SAMPLE_DIVISION);	
-		glRasterPos3f(0.0f,-10.0f,stat_z);
-		drawCNString(stat1);
-		sprintf(stat1,"回车确认");	
-		glRasterPos3f(0.0f,-15.0f,stat_z);
-		drawCNString(stat1);
+		help_step_0();
 	}
 
 	if(step==1){
-		sprintf(stat1,"方向键移动光标");
-	    glRasterPos3f(0.0f,0.0f,stat_z);
-	    drawCNString(stat1);	
-		sprintf(stat1,"空格确定测温位置");
-	    glRasterPos3f(0.0f,-5.0f,stat_z);
-	    drawCNString(stat1);	
-        sprintf(stat1,"最多%d个(%d/%d)",MEASURE_MAX,measure_point,MEASURE_MAX);  
-	    glRasterPos3f(0.0f,-10.0f,stat_z);
-	    drawCNString(stat1);
-        sprintf(stat1,"全部完成后左键点选加热炉");  
-	    glRasterPos3f(0.0f,-15.0f,stat_z);
-	    drawCNString(stat1);
+		help_step_1();
 	}
 	
 	if(step==2){
-		if(ovendoor_t>10){
-			sprintf(stat1,"方向键选择加热温度，回车确认");
-	        glRasterPos3f(0.0f,0.0f,stat_z);
-	        drawCNString(stat1);	
-            sprintf(stat1,"当前：%d°C",oven_num);  
-	        glRasterPos3f(0.0f,-5.0f,stat_z);
-	        drawCNString(stat1);
-		}
-		if(ovendoor_t<10){
-			sprintf(stat1,"左键点选数据采集仪连接热电偶");
-			glRasterPos3f(0.0f,0.0f,stat_z);
-			drawCNString(stat1);	
-		}
+		help_step_2();
 	}
 		
 	if(step==3){
-        if(collector_flag==0){
-			sprintf(stat1,"左键点选数据采集仪连接热电偶");
-			glRasterPos3f(0.0f,0.0f,stat_z);
-			drawCNString(stat1);	
-		}
-	    if(collector_flag==1&&!screen_flag){
-            sprintf(stat1,"连接完成");  
-	        glRasterPos3f(0.0f,0.0f,stat_z);
-	        drawCNString(stat1);
-            sprintf(stat1,"左键点选显示屏查看温度输出结果");  
-	        glRasterPos3f(0.0f,-5.0f,stat_z);
-	        drawCNString(stat1);
-	    }
-	    if(screen_flag){
-			sprintf(stat1,"若正负极接反，输出温度为异常值");  
-			glRasterPos3f(0.0f,-0.0f,stat_z);
-			drawCNString(stat1);
-			sprintf(stat1,"上下方向键改变选中的热电偶");  
-			glRasterPos3f(0.0f,-5.0f,stat_z);
-			drawCNString(stat1);
-			sprintf(stat1,"空格转换正负极");  
-			glRasterPos3f(0.0f,-10.0f,stat_z);
-			drawCNString(stat1);
-			sprintf(stat1,"直到完全正确后按回车");  
-			glRasterPos3f(0.0f,-15.0f,stat_z);
-			drawCNString(stat1);
-		}
+		help_step_3();
 	}
 		
 	if(step==4){
-	    if(windtunnel_flag==0&&anemoscope_flag==0){
-			sprintf(stat1,"强制冷却：左键点选风机");
-			glRasterPos3f(0.0f,0.0f,stat_z);
-			drawCNString(stat1);
-			sprintf(stat1,"自然冷却：直接进入下一步");
-			glRasterPos3f(0.0f,-5.0f,stat_z);
-			drawCNString(stat1);	
-		}
-	    if(windtunnel_flag>0&&anemoscope_flag==0){
-			sprintf(stat1,"上下方向键改变出风大小");
-			glRasterPos3f(0.0f,0.0f,stat_z);
-			drawCNString(stat1);
-			sprintf(stat1,"当前%d档",windtunnel_flag);
-			glRasterPos3f(0.0f,-5.0f,stat_z);
-			drawCNString(stat1);
-		}
-	    if(anemoscope_flag==0){
-			sprintf(stat1,"左键点选热线风速仪");
-			glRasterPos3f(0.0f,-10.0f,stat_z);
-			drawCNString(stat1);
-		}
-	    if(anemoscope_flag==1){
-			sprintf(stat1,"方向键移动热线风速仪");  
-			glRasterPos3f(0.0f,0.0f,stat_z);
-			drawCNString(stat1);
-			sprintf(stat1,"测量气流温度及速度");  
-			glRasterPos3f(0.0f,-5.0f,stat_z);
-			drawCNString(stat1);
-			sprintf(stat1,"尽量靠近试样支架获得准确数据");  
-			glRasterPos3f(0.0f,-10.0f,stat_z);
-			drawCNString(stat1);
-			sprintf(stat1,"温度:%.2f°C 风速:%.2f m/s",anemoscope_temp,anemoscope_speed);  
-			glRasterPos3f(0.0f,-15.0f,stat_z);
-			drawCNString(stat1);
-			sprintf(stat1,"回车确认当前数据,开始冷却");  
-			glRasterPos3f(0.0f,-20.0f,stat_z);
-			drawCNString(stat1);
-		}
+		help_step_4();
 	}	
 			
 	if(step==5&&!samplemove_flag2){
-        sprintf(stat1,"冷却开始");
-	    glRasterPos3f(0.0f,0.0f,stat_z);
-	    drawCNString(stat1);
+		help_step_5();
 	}	
 	
 
@@ -1185,56 +1174,8 @@ glViewport(width1,0,width-width1,height);////////////////视口4//////////提示
 
 
 
-void idle()
-{   
-	//sample move
-	if(samplemove_flag1&&sample_t<90)++sample_t;
-	else samplemove_flag1=false;
-	if(samplemove_flag2&&sample_t> 0)--sample_t;
-	else samplemove_flag2=false;
 
-	if(ovenopen_flag &&ovendoor_t<150)ovendoor_t+=5;
-	else ovenopen_flag=false;
-	if(ovenclose_flag&&ovendoor_t> 0)ovendoor_t-=10;
-	else ovenclose_flag=false;
-
-	//数据显示
-	for(int i=0;i<measure_point;++i){
-		if(buffer[i].size()>=1050)buffer[i].pop_front();
-		if(step==3||step==4){
-			if(!collector_inverse[i])buffer[i].push_back(random(0,100));
-			else buffer[i].push_back(ENVIRONMENT_T+random(-1,1));
-		}
-		else if(step==5&&!samplemove_flag2){
-			static int durationi=0;
-			int delay=(DELAY-speedChange+5);
-			int step=durationi%delay;
-			sample_time=durationi/delay;
-			if(sample_time<duration-1){//(durationi<duration*DELAY-1){
-				float bufferToPush= ( temperature_measure_vec[i][sample_time]*(delay-step) + temperature_measure_vec[i][sample_time+1]*step ) /float(delay);
-				buffer[i].push_back(bufferToPush);
-				durationi++;
-			}
-			else{
-				buffer[i].push_back(temperature_measure_vec[i][duration-1]);//需要延时
-			    sample_time=duration-1;
-			}
-		}
-	}
-
-	picked_sign_angle++;
-	
-	//oven_temperature
-	if(step==3||step==4||(step==2&&ovendoor_t<10)){tao0+=0.05/(DELAY-speedChange);t0=oven_num-1.0/(tao0/125+1.0/float(oven_num-ENVIRONMENT_T));}
-//	if((cool)&&(tao<19999))tao+=0.5;
-
-	
-	if ((tab_flag)&&(width1<width))  width1+=10;
-    if ((!tab_flag)&&(width1>width-320)) width1-=10;
-	glutPostRedisplay();
-}
-
-
+//??
 void MenuFunc(int MenuItem)// 菜单项处理函数
 {
 	
@@ -1264,70 +1205,97 @@ void MenuFunc(int MenuItem)// 菜单项处理函数
 	cursor=false;
 }
 
+void idle()
+{
+	//sample move
+	if (samplemove_flag1&&sample_t<90)++sample_t;
+	else samplemove_flag1 = false;
+	if (samplemove_flag2&&sample_t> 0)--sample_t;
+	else samplemove_flag2 = false;
+
+	if (ovenopen_flag &&ovendoor_t<150)ovendoor_t += 5;
+	else ovenopen_flag = false;
+	if (ovenclose_flag&&ovendoor_t> 0)ovendoor_t -= 10;
+	else ovenclose_flag = false;
+
+	//数据显示
+	for (int i = 0; i<measure_point; ++i) {
+		if (buffer[i].size() >= 1050)buffer[i].pop_front();
+		if (step == 3 || step == 4) {
+			if (!collector_inverse[i])buffer[i].push_back(random(0, 100));
+			else buffer[i].push_back(ENVIRONMENT_T + random(-1, 1));
+		}
+		else if (step == 5 && !samplemove_flag2) {
+			static int durationi = 0;
+			int delay = (DELAY - speedChange + 5);
+			int step = durationi%delay;
+			sample_time = durationi / delay;
+			if (sample_time<duration - 1) {//(durationi<duration*DELAY-1){
+				float bufferToPush = (temperature_measure_vec[i][sample_time] * (delay - step) + temperature_measure_vec[i][sample_time + 1] * step) / float(delay);
+				buffer[i].push_back(bufferToPush);
+				durationi++;
+			}
+			else {
+				buffer[i].push_back(temperature_measure_vec[i][duration - 1]);//需要延时
+				sample_time = duration - 1;
+			}
+		}
+	}
+
+	picked_sign_angle++;
+
+	//oven_temperature
+	if (step == 3 || step == 4 || (step == 2 && ovendoor_t<10)) { tao0 += 0.05 / (DELAY - speedChange); t0 = oven_num - 1.0 / (tao0 / 125 + 1.0 / float(oven_num - ENVIRONMENT_T)); }
+	//	if((cool)&&(tao<19999))tao+=0.5;
+
+
+	if ((tab_flag) && (width1<width))  width1 += 10;
+	if ((!tab_flag) && (width1>width - 320)) width1 -= 10;
+	glutPostRedisplay();
+}
+
 void init_model(){
 
 	myinit_model(1, "../../2.UGmodel/3DS/1_table.3DS");
-myinit_model(2, "../../2.UGmodel/3DS/2_monitor.3DS");
-myinit_model(3, "../../2.UGmodel/3DS/4_collector_blk.3DS");
-myinit_model(4, "../../2.UGmodel/3DS/4_collector_blu.3DS");
-myinit_model(5, "../../2.UGmodel/3DS/4_collector_wht.3DS");
-myinit_model(6, "../../2.UGmodel/3DS/5_wind_tunnel_blk.3DS");
-myinit_model(7, "../../2.UGmodel/3DS/5_wind_tunnel_gry.3DS");
-// myinit_model(8,"../../2.UGmodel/3DS/5_wind_tunnel_none.3DS");
-myinit_model(8, "../../2.UGmodel/3DS/5_wind_tunnel_wht.3DS");
-myinit_model(9, "../../2.UGmodel/3DS/6_anemoscope_blu.3DS");
-myinit_model(10, "../../2.UGmodel/3DS/6_anemoscope_blu_lgt.3DS");
-myinit_model(11, "../../2.UGmodel/3DS/6_anemoscope_wht.3DS");
-myinit_model(12, "../../2.UGmodel/3DS/6_anemoscope_wire_blk.3DS");
-myinit_model(13, "../../2.UGmodel/3DS/6_anemoscope_wire_wht.3DS");
-myinit_model(14, "../../2.UGmodel/3DS/8_shelf_wht_1.3DS");
-myinit_model(15, "../../2.UGmodel/3DS/8_shelf_wht_2.3DS");
-myinit_model(16, "../../2.UGmodel/3DS/9_oven_blu.3DS");
-myinit_model(17, "../../2.UGmodel/3DS/9_oven_door_blu.3DS");
-// myinit_model(19,"../../2.UGmodel/3DS/9_oven_door_none.3DS");
-myinit_model(18, "../../2.UGmodel/3DS/9_oven_gry.3DS");
-myinit_model(19, "../../2.UGmodel/3DS/9_oven_wht.3DS");
-myinit_model(20, "../../2.UGmodel/3DS/C_box.3DS");
-myinit_model(21, "../../2.UGmodel/3DS/D_screw_blu.3DS");
-myinit_model(22, "../../2.UGmodel/3DS/D_screw_wht.3DS");
-myinit_model(23, "../../2.UGmodel/3DS/e_scissors_wht.3DS");
-myinit_model(24, "../../2.UGmodel/3DS/e_scissors_yel.3DS");
-myinit_model(25, "../../2.UGmodel/3DS/f_room_celling.3DS");
-myinit_model(26, "../../2.UGmodel/3DS/f_room_wall.3DS");
-myinit_model(27, "../../2.UGmodel/3DS/f_room_floor.3DS");
-myinit_model(28, "../../2.UGmodel/3DS/f_room_door.3DS");
-myinit_model(29, "../../2.UGmodel/3DS/f_room_scene.3DS");
-
-myinit_model(40, "../../2.UGmodel/3DS/5_wind_tunnel_none.3DS");
-myinit_model(41, "../../2.UGmodel/3DS/9_oven_door_none.3DS");
-BuildLists();// room box
-#pragma endregion
-}
-
-
-void init() {
+	myinit_model(2, "../../2.UGmodel/3DS/2_monitor.3DS");
+	myinit_model(3, "../../2.UGmodel/3DS/4_collector_blk.3DS");
+	myinit_model(4, "../../2.UGmodel/3DS/4_collector_blu.3DS");
+	myinit_model(5, "../../2.UGmodel/3DS/4_collector_wht.3DS");
+	myinit_model(6, "../../2.UGmodel/3DS/5_wind_tunnel_blk.3DS");
+	myinit_model(7, "../../2.UGmodel/3DS/5_wind_tunnel_gry.3DS");
+	// myinit_model(8,"../../2.UGmodel/3DS/5_wind_tunnel_none.3DS");
+	myinit_model(8, "../../2.UGmodel/3DS/5_wind_tunnel_wht.3DS");
+	myinit_model(9, "../../2.UGmodel/3DS/6_anemoscope_blu.3DS");
+	myinit_model(10, "../../2.UGmodel/3DS/6_anemoscope_blu_lgt.3DS");
+	myinit_model(11, "../../2.UGmodel/3DS/6_anemoscope_wht.3DS");
+	myinit_model(12, "../../2.UGmodel/3DS/6_anemoscope_wire_blk.3DS");
+	myinit_model(13, "../../2.UGmodel/3DS/6_anemoscope_wire_wht.3DS");
+	myinit_model(14, "../../2.UGmodel/3DS/8_shelf_wht_1.3DS");
+	myinit_model(15, "../../2.UGmodel/3DS/8_shelf_wht_2.3DS");
+	myinit_model(16, "../../2.UGmodel/3DS/9_oven_blu.3DS");
+	myinit_model(17, "../../2.UGmodel/3DS/9_oven_door_blu.3DS");
+	// myinit_model(19,"../../2.UGmodel/3DS/9_oven_door_none.3DS");
+	myinit_model(18, "../../2.UGmodel/3DS/9_oven_gry.3DS");
+	myinit_model(19, "../../2.UGmodel/3DS/9_oven_wht.3DS");
+	myinit_model(20, "../../2.UGmodel/3DS/C_box.3DS");
+	myinit_model(21, "../../2.UGmodel/3DS/D_screw_blu.3DS");
+	myinit_model(22, "../../2.UGmodel/3DS/D_screw_wht.3DS");
+	myinit_model(23, "../../2.UGmodel/3DS/e_scissors_wht.3DS");
+	myinit_model(24, "../../2.UGmodel/3DS/e_scissors_yel.3DS");
+	myinit_model(25, "../../2.UGmodel/3DS/f_room_celling.3DS");
+	myinit_model(26, "../../2.UGmodel/3DS/f_room_wall.3DS");
+	myinit_model(27, "../../2.UGmodel/3DS/f_room_floor.3DS");
+	myinit_model(28, "../../2.UGmodel/3DS/f_room_door.3DS");
+	myinit_model(29, "../../2.UGmodel/3DS/f_room_scene.3DS");
 	
-	glutKeyboardFunc(KeyProcess);
-	glutSpecialFunc(SpecialKey);
-
-	glutKeyboardUpFunc(KeyUpProcess);
-	glutSpecialUpFunc(SpecialKeyUp);
-	glutMouseFunc(Mouse);
-	//	glutMotionFunc(mouseMotion);
-	glutPassiveMotionFunc(mousePassiveMotion);
-
-	createGLUTMenus();
-
-	glutIgnoreKeyRepeat(1);//无视连发
-	ShowCursor(cursor);  // 隐藏鼠标指针
-
-	pick_initial();
-
-	init_model();
+	myinit_model(40, "../../2.UGmodel/3DS/5_wind_tunnel_none.3DS");
+	myinit_model(41, "../../2.UGmodel/3DS/9_oven_door_none.3DS");
+	BuildLists();// room box
 
 }
 
 
+/////////////////////////////////
 void main()
 {     
 	// init GLUT and create window
@@ -1341,7 +1309,22 @@ void main()
 	glutDisplayFunc(renderScene);
 	glutReshapeFunc(Reshape);
 	glutIdleFunc(idle);
-	init();
+	glutKeyboardFunc(KeyProcess);
+	glutSpecialFunc(SpecialKey);
+
+	glutKeyboardUpFunc(KeyUpProcess);
+	glutSpecialUpFunc(SpecialKeyUp);
+	glutMouseFunc(Mouse);
+	glutPassiveMotionFunc(mousePassiveMotion);
+
+	createGLUTMenus();
+
+	glutIgnoreKeyRepeat(1);//无视连发
+	ShowCursor(cursor);  // 隐藏鼠标指针
+
+	pick_initial();
+
+	init_model();
 
 	// enter GLUT event processing cycle
 	glutMainLoop();
